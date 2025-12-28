@@ -17,10 +17,10 @@ app.post('/create-payment', async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Optional: Enforce your pricing rules
+    // Optional: enforce pricing rules
     const pricing = {
-      "login": "20.00",
-      "signup": "100.00"
+      "login": 20.0,
+      "signup": 100.0
     };
 
     if (paymentType in pricing) {
@@ -37,15 +37,13 @@ app.post('/create-payment', async (req, res) => {
     const chapaResponse = await axios.post(
       'https://api.chapa.co/v1/transaction/initialize',
       {
-        amount: amount,
+        amount: amount.toFixed(2), // format as string "100.00"
         currency: 'ETB',
         email: email,
         first_name: name,
-        last_name: '',
+        last_name: 'N/A',
         description: description || `Payment for ${paymentType}`,
-        callback_url: 'https://yourdomain.onrender.com/webhook', // Optional
-        return_url: 'myeduapp://payment-result',
-        reference: reference,
+        return_url: 'https://chapa-backend-i1wy.onrender.com/payment-result', // HTTPS URL
         tx_ref: reference,
       },
       {
@@ -59,13 +57,19 @@ app.post('/create-payment', async (req, res) => {
     res.json({
       success: true,
       checkout_url: chapaResponse.data.data.checkout_url,
-      reference: reference
+      tx_ref: reference
     });
 
   } catch (error) {
     console.error('Chapa Error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Payment setup failed' });
   }
+});
+
+// Payment return route - redirects to your app
+app.get('/payment-result', (req, res) => {
+  // Redirect to Android app deep link
+  res.redirect('myeduapp://payment-result');
 });
 
 // Health check (for Render)
