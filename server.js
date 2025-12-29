@@ -1,10 +1,12 @@
 const express = require('express');
+const cors = require('cors');
 const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Parse JSON requests
+// Middleware
+app.use(cors()); // ✅ Added back - needed for Android app
 app.use(express.json());
 
 /**
@@ -25,21 +27,25 @@ app.post('/create-payment', async (req, res) => {
       signup: 100.0,
     };
 
-    if (!pricing[paymentType]) {
+    // ✅ Handle daily payment type (format: "daily_YYYYMMDD")
+    const paymentTypeKey = paymentType.startsWith('daily_') ? 'login' : paymentType;
+
+    if (!pricing[paymentTypeKey]) {
       return res
         .status(400)
         .json({ error: "Invalid paymentType. Use 'login' or 'signup'." });
     }
 
-    if (Number(amount) !== pricing[paymentType]) {
+    if (Number(amount) !== pricing[paymentTypeKey]) {
       return res.status(400).json({
-        error: `Invalid amount. Expected ETB ${pricing[paymentType]}`,
+        error: `Invalid amount. Expected ETB ${pricing[paymentTypeKey]}`,
       });
     }
 
-    // ✅ Ensure secret key exists
-    if (!process.env.CHAPA_SECRET) {
-      console.error('❌ CHAPA_SECRET is missing');
+    // ✅ Check for secret key (supports both names)
+    const chapaSecret = process.env.CHAPA_SECRET_KEY || process.env.CHAPA_SECRET;
+    if (!chapaSecret) {
+      console.error('❌ CHAPA_SECRET_KEY or CHAPA_SECRET is missing');
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
@@ -60,7 +66,7 @@ app.post('/create-payment', async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.CHAPA_SECRET}`,
+          Authorization: `Bearer ${chapaSecret}`,
           'Content-Type': 'application/json',
         },
       }
@@ -100,4 +106,3 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running on port ${PORT}`);
 });
-
